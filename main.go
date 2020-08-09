@@ -1,71 +1,102 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 )
 
 type Expense struct {
-	ID     int    `json:id`
-	Date   string `json:date`
-	Title  string `json:title`
-	Amount int    `jsom:amount`
+	id     int    `json:id`
+	paidAt string `json:paidAt`
+	title  string `json:title`
+	amount int    `jsom:amount`
 }
 
 var expenses []Expense
+var db *sql.DB
+var connectionString string
+
+//Check fatal error
+func logFatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func init() {
+	//Load environment variables
+	err := godotenv.Load()
+	logFatal(err)
+
+	//Set connection string
+	connectionString = "postgres://" + os.Getenv("POSTGRES_USER") + ":" + os.Getenv("POSTGRES_PASSWORD") + "@localhost:5432/" + os.Getenv("POSTGRES_DB") + "?sslmode=disable"
+	pgURL, err := pq.ParseURL(connectionString)
+	logFatal(err)
+
+	//Init db connection
+	db, err = sql.Open("postgres", pgURL)
+	logFatal(err)
+
+	err = db.Ping()
+	logFatal(err)
+}
 
 func main() {
 
+	log.Println(connectionString)
+	log.Println(db)
+
+	//API endpoint definition
 	router := mux.NewRouter()
-
-	expenses = append(expenses,
-		Expense{ID: 1, Date: "2020-01-01", Title: "Car repairng", Amount: 15000},
-		Expense{ID: 2, Date: "2020-01-02", Title: "Coke", Amount: 500},
-		Expense{ID: 3, Date: "2020-01-03", Title: "Gourmet salad", Amount: 10000},
-		Expense{ID: 4, Date: "2020-01-04", Title: "Pizza slice", Amount: 150},
-	)
-
 	router.HandleFunc("/expenses", getExpenses).Methods("GET")
 	router.HandleFunc("/expenses/{id}", getExpense).Methods("GET")
 	// router.HandleFunc("/expenses", createExpense).Methods("POST")
 	// router.HandleFunc("/expenses", createExpense).Methods("POST")
 	// router.HandleFunc("/expenses/{id}", removeExpense).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":9000", router))
+	serverHost := ":" + os.Getenv("APP_PORT")
+	log.Println("Init server at " + serverHost)
+	log.Fatal(http.ListenAndServe(serverHost, router))
 }
 
 //Get all expenses
 func getExpenses(w http.ResponseWriter, r *http.Request) {
+	var expense Expense
+
+	rows, err := db.Query("select * from public.expenses")
+	logFatal(err)
+
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.Scan(&expense.id, &expense.paidAt, &expense.title, &expense.amount)
+		logFatal(err)
+
+		expenses = append(expenses, expense)
+	}
+
 	json.NewEncoder(w).Encode(expenses)
 }
 
 //Get an expense based on id integer parameter
 func getExpense(w http.ResponseWriter, r *http.Request) {
+	var expense Expense
 	params := mux.Vars(r)
 
-	//Try to convert parameter into int
 	id, err := strconv.Atoi(params["id"])
+	logFatal(err)
 
-	if err != nil {
-		//@todo: respond a 403 error
-		log.Println("Error: Id should be integer")
-		return
-	}
+	row := db.QueryRow("select * from public.expenses where id=$1", id)
 
-	for _, expense := range expenses {
-		if expense.ID == id {
-			json.NewEncoder(w).Encode(&expense)
-			return
-		}
-	}
-
-	//@todo: refactor this to respond an appropiated json response
-	json.NewEncoder(w).Encode(`{
-		"erro"r: "Not found"
-	}`)
-
+	row.Scan(&expense.id, &expense.title, &expense.amount)
+	json.NewEncoder(w).Encode(expense)
 }
