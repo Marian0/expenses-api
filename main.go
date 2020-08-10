@@ -18,7 +18,7 @@ type Expense struct {
 	id     int    `json:id`
 	paidAt string `json:paidAt`
 	title  string `json:title`
-	amount int    `jsom:amount`
+	amount int    `json:amount`
 }
 
 var expenses []Expense
@@ -72,7 +72,7 @@ func main() {
 func getExpenses(w http.ResponseWriter, r *http.Request) {
 	var expense Expense
 
-	rows, err := db.Query("select * from public.expenses")
+	rows, err := db.Query("select * from expenses")
 	logFatal(err)
 
 	defer rows.Close()
@@ -95,7 +95,7 @@ func getExpense(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(params["id"])
 	logFatal(err)
 
-	row := db.QueryRow("select * from public.expenses where id=$1", id)
+	row := db.QueryRow("select * from expenses where id=$1", id)
 
 	row.Scan(&expense.id, &expense.title, &expense.amount)
 	json.NewEncoder(w).Encode(expense)
