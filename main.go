@@ -70,7 +70,7 @@ func main() {
 
 //Get all expenses
 func getExpenses(w http.ResponseWriter, r *http.Request) {
-
+	expenses = []Expense{}
 	rows, err := db.Query("select * from expenses")
 	logFatal(err)
 
@@ -97,6 +97,8 @@ func getExpense(w http.ResponseWriter, r *http.Request) {
 
 	row := db.QueryRow("select * from expenses where id=$1", id)
 
-	row.Scan(&expense.ID, &expense.Title, &expense.Amount)
+	err = row.Scan(&expense.ID, &expense.PaidAt, &expense.Title, &expense.Amount)
+	logFatal(err)
+
 	json.NewEncoder(w).Encode(expense)
 }
