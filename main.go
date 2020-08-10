@@ -15,10 +15,10 @@ import (
 )
 
 type Expense struct {
-	id     int    `json:id`
-	paidAt string `json:paidAt`
-	title  string `json:title`
-	amount int    `json:amount`
+	ID     int    `json:id`
+	PaidAt string `json:paidAt`
+	Title  string `json:title`
+	Amount int    `json:amount`
 }
 
 var expenses []Expense
@@ -70,7 +70,6 @@ func main() {
 
 //Get all expenses
 func getExpenses(w http.ResponseWriter, r *http.Request) {
-	var expense Expense
 
 	rows, err := db.Query("select * from expenses")
 	logFatal(err)
@@ -78,7 +77,8 @@ func getExpenses(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 
 	for rows.Next() {
-		err := rows.Scan(&expense.id, &expense.paidAt, &expense.title, &expense.amount)
+		var expense Expense
+		err := rows.Scan(&expense.ID, &expense.PaidAt, &expense.Title, &expense.Amount)
 		logFatal(err)
 
 		expenses = append(expenses, expense)
@@ -97,6 +97,6 @@ func getExpense(w http.ResponseWriter, r *http.Request) {
 
 	row := db.QueryRow("select * from expenses where id=$1", id)
 
-	row.Scan(&expense.id, &expense.title, &expense.amount)
+	row.Scan(&expense.ID, &expense.Title, &expense.Amount)
 	json.NewEncoder(w).Encode(expense)
 }
