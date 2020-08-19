@@ -25,3 +25,6 @@
 
 #env file
 .env
+
+#executable
+expenses-api
